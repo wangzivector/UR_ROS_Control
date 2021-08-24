@@ -1,4 +1,11 @@
-#  sudo bash /home/wangzi/URFiles/ursim-3.15.3.106223/start-ursim.sh 
+#!/usr/bin/env python3
+
+# run this script, please:
+# use python3 and install pip3 by sudo apt install python3-pip
+# upgrade pip3: pip3 install --upgrade pip
+# install ur_rtde: pip3 install ur_rtde
+
+# if simulation mode, run: sudo bash /home/wangzi/URFiles/ursim-3.15.3.106223/start-ursim.sh 
 
 from rtde_io import RTDEIOInterface as RTDEIO
 from rtde_receive import RTDEReceiveInterface as RTDEReceive
@@ -6,9 +13,11 @@ from rtde_control import RTDEControlInterface as RTDEControl
 import time
 import struct
 
+UR_IP_ADDRESS = "127.0.0.1"
+
 class state_jointctl():
     def __init__(self):
-        self.ur_jointctl = RTDEControl("127.0.0.1")
+        self.ur_jointctl = RTDEControl(UR_IP_ADDRESS)
 
     def set_TargetJoint(self, target_joint_q, is_Noblocked):
         return self.ur_jointctl.moveJ(target_joint_q, 1.05, 1.4, is_Noblocked)
@@ -18,7 +27,7 @@ class state_jointctl():
 
 class state_ioctl():
     def __init__(self):
-        self.ur_ioctl = RTDEIO("127.0.0.1")
+        self.ur_ioctl = RTDEIO(UR_IP_ADDRESS)
 
     def set_DigitalOutput(self, pin_id, pin_level):
         return self.ur_ioctl.setStandardDigitalOut(pin_id, pin_level)
@@ -37,7 +46,7 @@ class state_ioctl():
 
 class state_receive():
     def __init__(self):
-        self.ur_receive = RTDEReceive("127.0.0.1")
+        self.ur_receive = RTDEReceive(UR_IP_ADDRESS)
 
     def get_ActuralTCPPose(self):
         # Actual Cartesian coordinates of the tool: (x,y,z,rx,ry,rz),
@@ -92,8 +101,8 @@ def main():
         # get joint space pos
         JointPos = urReceive.get_ActuraljointQuan()
         print('current JointPos:', JointPos)
-        JointPos[2] += joint_array_2[index_loop]
-        JointPos[3] += joint_array_3[index_loop]
+        JointPos[1] += joint_array_2[index_loop]
+        JointPos[2] += joint_array_3[index_loop]
         print('target JointPos:', JointPos)
         # set joint space pos
         urJointctl.set_TargetJoint(JointPos, False)
@@ -108,7 +117,8 @@ def main():
         urIoctl.set_DigitalOutput(1, False)
         urIoctl.set_DigitalOutput(2, Pin_array_2[index_loop])
         urIoctl.set_DigitalOutput(3, Pin_array_3[index_loop])
-        time.sleep(5)
+        input("Press Enter to continue...")
+        # time.sleep(5)
 
 
 if __name__ == "__main__":
