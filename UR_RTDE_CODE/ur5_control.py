@@ -13,7 +13,7 @@ from rtde_control import RTDEControlInterface as RTDEControl
 import time
 import struct
 
-UR_IP_ADDRESS = "127.0.0.1"
+UR_IP_ADDRESS = "10.113.130.25"
 
 class state_jointctl():
     def __init__(self):
@@ -80,11 +80,13 @@ def main():
     index_loop_max = 4
 
     Analog_percent = 0.0
-    Analog_percent_max = 1.0
+    Analog_percent_max = 0.5
 
-    joint_array_2 = [0.0,  0.10, 0.0,  -0.10]
-    joint_array_3 = [0.10, 0.0, -0.10,  0.0]
+    joint_array_2 = [0.0,  0.010, 0.0,  -0.010]
+    joint_array_3 = [0.010, 0.0, -0.010,  0.0]
 
+    Pin_array_0 = [False,  True, False,  True]
+    Pin_array_1 = [False,  True, False,  True]
     Pin_array_2 = [False,  True, False,  True]
     Pin_array_3 = [True, False,  True,  False]
 
@@ -111,12 +113,14 @@ def main():
         outputPinState = urReceive.get_outputPinsState()
         print('outputPinState: ', outputPinState)
         # set Analog_percent output
-        urIoctl.set_AnalogVotageOutput(0, Analog_percent)
-        urIoctl.set_AnalogCurrentOutput(1, Analog_percent)
-        urIoctl.set_DigitalOutput(0, True)
-        urIoctl.set_DigitalOutput(1, False)
-        urIoctl.set_DigitalOutput(2, Pin_array_2[index_loop])
-        urIoctl.set_DigitalOutput(3, Pin_array_3[index_loop])
+        # print(Analog_percent)
+        # urIoctl.set_AnalogVotageOutput(0, 0)
+        # urIoctl.set_AnalogVotageOutput(1, Analog_percent)
+        
+        urIoctl.set_DigitalOutput(0, Pin_array_0[index_loop])
+        urIoctl.set_DigitalOutput(1, Pin_array_1[index_loop])
+        # urIoctl.set_DigitalOutput(0, Pin_array_2[index_loop])
+        # urIoctl.set_DigitalOutput(1, Pin_array_3[index_loop])
         input("Press Enter to continue...")
         # time.sleep(5)
 
