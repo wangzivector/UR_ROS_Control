@@ -1,0 +1,17 @@
+<launch>
+  <arg name="dev" default="/dev/input/js0" />
+
+  <!-- Launch joy node -->
+  <node pkg="joy" type="joy_node" name="joy">
+    <param name="dev" value="$(arg dev)" />
+    <param name="deadzone" value="0.2" />
+    <param name="autorepeat_rate" value="50" />
+    <param name="coalesce_interval" value="0.02" />
+  </node>
+
+  <node pkg="ur_servo" type="joy_delta_pose.py" name="joy_delta_pose"/>
+
+  <node pkg="rostopic" type="rostopic" name="echo_joy" args="echo /joy" output="screen"/>
+  <!-- <node pkg="rostopic" type="rostopic" name="echo_joy_delta_pose" args="echo /joy_delta_pose" output="screen"/> -->
+
+</launch>

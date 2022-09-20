@@ -10,10 +10,8 @@
 from rtde_io import RTDEIOInterface as RTDEIO
 from rtde_receive import RTDEReceiveInterface as RTDEReceive
 from rtde_control import RTDEControlInterface as RTDEControl
-import time
-import struct
 
-UR_IP_ADDRESS = "10.113.130.25"
+UR_IP_ADDRESS = "10.113.130.112"
 
 class state_jointctl():
     def __init__(self):
@@ -71,7 +69,7 @@ class state_receive():
         # return {'dig_inout': bits, 'con_input': bits[8:16], 'too_input': bits[16:18]}
 
 def main():
-    print("python script for ur5 is working now...")
+    print("python script for ur5 is starting now...")
     urReceive = state_receive()
     urJointctl = state_jointctl()
     urIoctl = state_ioctl()
@@ -114,20 +112,17 @@ def main():
         print('outputPinState: ', outputPinState)
         # set Analog_percent output
         # print(Analog_percent)
-        # urIoctl.set_AnalogVotageOutput(0, 0)
-        # urIoctl.set_AnalogVotageOutput(1, Analog_percent)
+        urIoctl.set_AnalogVotageOutput(0, 0)
+        urIoctl.set_AnalogVotageOutput(1, Analog_percent)
         
         urIoctl.set_DigitalOutput(0, Pin_array_0[index_loop])
         urIoctl.set_DigitalOutput(1, Pin_array_1[index_loop])
-        # urIoctl.set_DigitalOutput(0, Pin_array_2[index_loop])
-        # urIoctl.set_DigitalOutput(1, Pin_array_3[index_loop])
+        urIoctl.set_DigitalOutput(0, Pin_array_2[index_loop])
+        urIoctl.set_DigitalOutput(1, Pin_array_3[index_loop])
         input("Press Enter to continue...")
         # time.sleep(5)
 
 
 if __name__ == "__main__":
     main()
-
-
-
 
