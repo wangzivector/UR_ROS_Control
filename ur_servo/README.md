@@ -1,5 +1,5 @@
 # Introduction
-This repository is setuped for controlling pose of UR end-effector using **python** scripts. There are three python packages (`RTDE`, `moveit_ros_planning_interface` and `moveit_commander`) adopted independently to achieve the same goal: **Move UR's TCP to desired poses fast**. 
+This repository is setuped for controlling pose of UR end-effector using **python** scripts. There are three python packages (`RTDE`, `moveit_ros_planning_interface` and `moveit_commander`) adopted independently to achieve the same goal: **Move UR's TCP to desired poses fast**. (**If you don't want to take MoveIt, `script/ur_joy_rtde.py` with excellent servo rate(20-100Hz) will satisify most of your needs.**)  
 
 ## RTDE-based scripts
 

@@ -110,28 +110,33 @@ class Joy_delta_pose_node:
         new_pose.header.stamp = rospy.get_rostime()
         new_pose.header.frame_id = self.frame_id
 
-        # move in local
+        ####
+        #### Pose XYZ
+        ####
         scale = 200.0
         x_diff = (status.left_analog_y) / scale
         y_diff = (status.left_analog_x) / scale
         
-        # z
-        z_scale = 1.0
+        DTHETA = 0.005
         if status.L1:
-            z_diff = 0.005 * z_scale
+            z_diff = DTHETA
         elif status.L2:
-            z_diff = -0.005 * z_scale
+            z_diff = -DTHETA
         else:
             z_diff = 0.0
 
-        new_pose.pose.position.x = x_diff
-        new_pose.pose.position.y = y_diff
-        new_pose.pose.position.z = z_diff
-
+        ####
+        #### Pose rXrYrZ
+        ####
         roll = 0.0
         pitch = 0.0
         yaw = 0.0
         DTHETA = 0.005
+
+        scale = 200.0
+        roll = (status.right_analog_y) / scale
+        pitch = (status.right_analog_x) / scale
+
         if status.R1:
             if self.history.all(lambda s: s.R1):
                 yaw = yaw + DTHETA * 2
@@ -142,35 +147,53 @@ class Joy_delta_pose_node:
                 yaw = yaw - DTHETA * 2
             else:
                 yaw = yaw - DTHETA
+         # increment of quaternion
+        diff_q = tf.transformations.quaternion_from_euler(roll, pitch, yaw)
+
+        ####
+        #### Joint 6
+        ####
+        DTHETA = 0.04
+        joint_6 = 0.0
         if status.up:
             if self.history.all(lambda s: s.up):
-                pitch = pitch + DTHETA * 2
+                joint_6 = joint_6 + DTHETA * 2
             else:
-                pitch = pitch + DTHETA
+                joint_6 = joint_6 + DTHETA
         elif status.down:
             if self.history.all(lambda s: s.down):
-                pitch = pitch - DTHETA * 2
+                joint_6 = joint_6 - DTHETA * 2
             else:
-                pitch = pitch - DTHETA
+                joint_6 = joint_6 - DTHETA
         if status.right:
             if self.history.all(lambda s: s.right):
-                roll = roll + DTHETA * 2
+                joint_6 = joint_6 + DTHETA * 2
             else:
-                roll = roll + DTHETA
+                joint_6 = joint_6 + DTHETA
         elif status.left:
             if self.history.all(lambda s: s.left):
-                roll = roll - DTHETA * 2
+                joint_6 = joint_6 - DTHETA * 2
             else:
-                roll = roll - DTHETA
-        diff_q = tf.transformations.quaternion_from_euler(roll, pitch, yaw) # increment of quaternion
-        new_pose.pose.orientation.x = diff_q[0]
-        new_pose.pose.orientation.y = diff_q[1]
-        new_pose.pose.orientation.z = diff_q[2]
-        new_pose.pose.orientation.w = diff_q[3]
-        
+                joint_6 = joint_6 - DTHETA
+
+        #### Analyse mode
         if status.select:
-            new_pose.header.frame_id = "STOP"
-        return new_pose
+            new_pose.header.frame_id = "JOY_STOP"
+            return new_pose
+        elif abs(joint_6) > 1e-3:
+            new_pose.header.frame_id = "JOY_JOINT"
+            new_pose.pose.orientation.z = joint_6
+            return new_pose
+        else:
+            new_pose.header.frame_id = "JOY_SERVO"
+            new_pose.pose.position.x = x_diff
+            new_pose.pose.position.y = y_diff
+            new_pose.pose.position.z = z_diff
+            new_pose.pose.orientation.x = diff_q[0]
+            new_pose.pose.orientation.y = diff_q[1]
+            new_pose.pose.orientation.z = diff_q[2]
+            new_pose.pose.orientation.w = diff_q[3]
+            return new_pose
 
     def joyCB(self, msg):
         axes_amount = len(msg.axes)
