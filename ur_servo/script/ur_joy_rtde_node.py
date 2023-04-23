@@ -41,8 +41,8 @@ class RTDE_node:
     def __init__(self, UR_IP_ADDRESS):
         self.tf_listener = tf.TransformListener()
         self.prev_time = rospy.Time.now()
-        self.sub_joy = rospy.Subscriber("/joy_delta_pose", PoseStamped, self.pose_servo_CB, queue_size=1)
-        self.sub_servo = rospy.Subscriber("/pose_to_servo", PoseStamped, self.pose_servo_CB, queue_size=1)
+        self.sub_joy = rospy.Subscriber("/joy_delta_pose", PoseStamped, self.pose_servo_CB)
+        self.sub_servo = rospy.Subscriber("/pose_to_servo", PoseStamped, self.pose_servo_CB)
 
         print("Starting state_receive ...")
         self.urReceive = state_receive(UR_IP_ADDRESS)
@@ -56,14 +56,24 @@ class RTDE_node:
         Pose_delta = msg
         Head_frame_id = Pose_delta.header.frame_id
         identity, frame_id = Head_frame_id[:3], Head_frame_id[4:] # Get option
-
         if identity == "COM": print(Pose_delta)
-
         if frame_id == "STOP":
             self.is_stop_it_now = True
             return
+        elif frame_id == "APOSE": # absolute pose
+            Pose_curr = self.urReceive.get_ActuralTCPPose()
+            new_pose, pose_bias = self.computePoseFromAbsolutePose(Pose_curr, Pose_delta)
+            if (pose_bias > 1e-03 and pose_bias < 0.5):
+                self.target_pose = new_pose
+                self.pose_bias = pose_bias
+                self.overwrite_servo = False
+                self.control_mode = 'Pose'
+                rospy.loginfo("{} Update Pose bias: {:.04f}. \New XYZ: {:.02f} {:.02f} {:.02f},RxRyRz:{:.02f} {:.02f} {:.02f}".format(
+                    identity, pose_bias, new_pose[0], new_pose[1], new_pose[2], \
+                    new_pose[3], new_pose[4], new_pose[5]))
+            else: rospy.logwarn("ERROR distance bias for pose cnt: {}".format(pose_bias))
 
-        elif frame_id == "POSE":
+        elif frame_id == "DPOSE": # delta pose: only valid in position, not orientation for convenience ctl.
             Pose_curr = self.urReceive.get_ActuralTCPPose()
             # print('current Pose_ur:', Pose_curr)
             new_pose, pose_bias = self.computePoseFromDeltaPose(Pose_curr, Pose_delta)
@@ -72,23 +82,26 @@ class RTDE_node:
                 self.pose_bias = pose_bias
                 self.overwrite_servo = False
                 self.control_mode = 'Pose'
-                rospy.loginfo("{} Update Pose bias: {:.04f}. Current XYZ: {:.02f} {:.02f} {:.02f}".format(
-                    identity, pose_bias, Pose_curr[0], Pose_curr[1], Pose_curr[2]))
+                rospy.loginfo("{} Update Pose bias: {:.04f}. \nNew XYZ: {:.02f} {:.02f} {:.02f},RxRyRz:{:.02f} {:.02f} {:.02f}".format(
+                    identity, pose_bias, new_pose[0], new_pose[1], new_pose[2], \
+                    new_pose[3], new_pose[4], new_pose[5]))
+            else: rospy.logwarn("ERROR distance bias for pose cnt: {}".format(pose_bias))
 
-        elif frame_id == "JOINT":
+        elif frame_id == "JOINT": # delta joint
             Joint_curr = self.urReceive.get_ActuralJointPose()
             # print('current Pose_ur:', Pose_curr)
             new_joint, joint_bias = self.computeJointFromDeltaJoint(Joint_curr, Pose_delta)
-            if (joint_bias > 1e-03 and joint_bias < 2e-01):
+            if (joint_bias > 1e-03 and joint_bias < 2.0):
                 self.target_joint = new_joint
                 self.joint_bias = joint_bias
                 self.overwrite_servo = False
                 self.control_mode = 'Joint'
-                rospy.loginfo("{} Update joint bias: {:.04f}. Current Joint 456: {:.02f} {:.02f} {:.02f}".format(
-                    identity, joint_bias, Joint_curr[3], Joint_curr[4], Joint_curr[5]))
-            return
+                rospy.loginfo("{} Update joint bias: {:.04f}. Current Joint 123,456: {:.02f} {:.02f} {:.02f}, {:.02f} {:.02f} {:.02f}".format(
+                    identity, joint_bias, Joint_curr[0], Joint_curr[1], Joint_curr[2],Joint_curr[3], \
+                    Joint_curr[4], Joint_curr[5]))
+            else: rospy.logwarn("ERROR joint bias for pose cnt: {}".format(joint_bias))
 
-        elif frame_id == "SERVO":
+        elif frame_id == "SERVO": # delta pose servo
             Pose_curr = self.urReceive.get_ActuralTCPPose()
             # print('current Pose_ur:', Pose_curr)
             new_pose, pose_bias = self.computePoseFromDeltaPose(Pose_curr, Pose_delta)
@@ -97,14 +110,17 @@ class RTDE_node:
                 self.pose_bias = pose_bias
                 self.overwrite_servo = True
                 self.control_mode = 'Servo'
-                rospy.loginfo("{} Update Servo bias: {:.04f}. Current XYZ: {:.02f} {:.02f} {:.02f}".format(
-                    identity, pose_bias, Pose_curr[0], Pose_curr[1], Pose_curr[2]))
+                rospy.loginfo("{} Update SERVO bias: {:.04f}. \nCurrent XYZ: {:.02f} {:.02f} {:.02f},RxRyRz:{:.02f} {:.02f} {:.02f}".format(
+                    identity, pose_bias, Pose_curr[0], Pose_curr[1], Pose_curr[2], \
+                    Pose_curr[3], Pose_curr[4], Pose_curr[5]))
+            elif (identity != "JOY"): rospy.logwarn("ERROR pose bias for pose cnt: {}".format(pose_bias))
 
     @staticmethod
     def computePoseFromDeltaPose(Pose_curr, Pose_delta):
-        roll, pitch, yaw = tf.transformations.euler_from_quaternion([
-            Pose_delta.pose.orientation.x, Pose_delta.pose.orientation.y,
-            Pose_delta.pose.orientation.z, Pose_delta.pose.orientation.w])
+        # roll, pitch, yaw = tf.transformations.euler_from_quaternion([
+        #     Pose_delta.pose.orientation.x, Pose_delta.pose.orientation.y,
+        #     Pose_delta.pose.orientation.z, Pose_delta.pose.orientation.w])
+        roll, pitch, yaw = 0., 0., 0.
         
         new_pose = deepcopy(Pose_curr)
         new_pose[0] += Pose_delta.pose.position.x
@@ -115,6 +131,28 @@ class RTDE_node:
         new_pose[5] += yaw
         bias = Pose_delta.pose.position.x ** 2 + Pose_delta.pose.position.y ** 2 + \
                 Pose_delta.pose.position.z ** 2 + roll ** 2  + pitch ** 2  + yaw ** 2 
+        return new_pose, math.sqrt(bias)
+
+    @staticmethod
+    def computePoseFromAbsolutePose(Pose_curr, Pose_abs):
+        # roll, pitch, yaw = tf.transformations.euler_from_quaternion([
+        #     Pose_abs.pose.orientation.x, Pose_abs.pose.orientation.y,
+        #     Pose_abs.pose.orientation.z, Pose_abs.pose.orientation.w])
+        
+        # direct roll pitch yaw
+        new_pose = deepcopy(Pose_curr)
+        new_pose[0] = Pose_abs.pose.position.x
+        new_pose[1] = Pose_abs.pose.position.y
+        new_pose[2] = Pose_abs.pose.position.z
+        # new_pose[3] = roll
+        # new_pose[4] = pitch
+        # new_pose[5] = yaw
+        new_pose[3] = Pose_abs.pose.orientation.x
+        new_pose[4] = Pose_abs.pose.orientation.y
+        new_pose[5] = Pose_abs.pose.orientation.z
+        bias = 0
+        len(new_pose)
+        for i in range(3): bias += (Pose_curr[i] - new_pose[i]) ** 2 
         return new_pose, math.sqrt(bias)
 
     @staticmethod
@@ -153,7 +191,7 @@ class RTDE_node:
                     rospy.logwarn("Joystick call stop by pressing SELECT.")
                     rospy.signal_shutdown("Joystick call stop by pressing SELECT.")
 
-                vel_pose, acc, lookahead_time, gain, vel_joint = 0.03, 0.1, dt*2, 200, 0.2
+                vel_pose, acc, lookahead_time, gain, vel_joint = 0.1, 0.1, dt*2, 200, 0.4
 
                 servo_target_pose = self.target_pose
                 pose_delta = self.pose_bias
@@ -165,7 +203,9 @@ class RTDE_node:
                     block_time = pose_delta / vel_pose
                     if block_time < 0.2: block_time = 0.2
                     rospy.logwarn("Try to reach posedetla {} in time {} with vel {}".format(pose_delta, block_time, vel_pose))
+                    t_start = self.urJointctl.ur_jointctl.initPeriod()
                     self.urJointctl.ur_jointctl.servoL(servo_target_pose, vel_pose, acc, block_time, lookahead_time, gain)
+                    self.urJointctl.ur_jointctl.waitPeriod(t_start)
                     self.control_mode = 'Servo'
                     self.overwrite_servo = False
 
@@ -173,6 +213,7 @@ class RTDE_node:
                     block_time = joint_delta / vel_joint
                     if block_time < 0.2: block_time = 0.2
                     rospy.logwarn("Try to reach jointdetla {} in time {} with vel {}".format(joint_delta, block_time, vel_joint))
+                    print('servo_target_joint:', servo_target_joint)
                     self.urJointctl.ur_jointctl.servoJ(servo_target_joint, vel_joint, acc, block_time, lookahead_time, gain)
                     self.control_mode = 'Servo'
                     self.overwrite_servo = False
@@ -189,9 +230,11 @@ class RTDE_node:
 
 
 def main():
-    UR_IP_ADDRESS = "127.0.0.1"
-    if rospy.has_param("/ur_rdte_node/ip"):
-        UR_IP_ADDRESS = rospy.get_param("/ur_rdte_node/ip")
+    UR_IP_ADDRESS = "10.113.130.112"
+    if rospy.has_param("ur_ip"):
+        UR_IP_ADDRESS = rospy.get_param("ur_ip")
+    else:
+        rospy.logwarn('Cannot receice IP setting. using default IP..')
 
     rospy.init_node("ur_rdte_node")
     rospy.loginfo("Initialized node")

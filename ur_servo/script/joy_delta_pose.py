@@ -180,7 +180,7 @@ class Joy_delta_pose_node:
         if status.select:
             new_pose.header.frame_id = "JOY_STOP"
             return new_pose
-        elif abs(joint_6) > 1e-3:
+        elif abs(joint_6) > 1e-2:
             new_pose.header.frame_id = "JOY_JOINT"
             new_pose.pose.orientation.z = joint_6
             return new_pose
