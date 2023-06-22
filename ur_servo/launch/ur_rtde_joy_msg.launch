@@ -1,0 +1,8 @@
+<launch>
+  <arg name="ur_ip" default="10.113.130.112" />
+
+  <!-- Launch joy node -->
+  <node pkg="ur_servo" type="ur_joy_rtde_node.py" name="ur_joy_rtde_node" output='screen'>
+    <param name="ur_ip" value="$(arg ur_ip)" />
+  </node>
+</launch>

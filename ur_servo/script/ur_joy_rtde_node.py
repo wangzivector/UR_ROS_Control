@@ -8,12 +8,14 @@ import rospy
 import tf
 import math
 from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import Wrench
 
 
 class state_jointctl():
     def __init__(self, UR_IP_ADDRESS):
         print("Try to open UR Cap on UR terminal, after the following command...")
         self.ur_jointctl = RTDEControl(UR_IP_ADDRESS, -1, RTDEControl.FLAG_USE_EXT_UR_CAP)
+        # self.ur_jointctl.zeroFtSensor()
 
     def set_TargetJoint(self, target_joint_q, is_Noblocked):
         return self.ur_jointctl.moveJ(target_joint_q, 0.1, 0.8, is_Noblocked)
@@ -24,7 +26,7 @@ class state_jointctl():
 
 class state_receive():
     def __init__(self, UR_IP_ADDRESS):
-        variables = ["timestamp", "actual_q", "actual_TCP_pose"]
+        variables = ["timestamp", "actual_q", "actual_TCP_pose", "actual_TCP_force"]
         self.ur_receive = RTDEReceive(UR_IP_ADDRESS, 125, variables, True, False, -1)
 
     def get_ActuralJointPose(self):
@@ -36,6 +38,12 @@ class state_receive():
         # where rx, ry and rz is a rotation vector representation of 
         # the tool orientation
         return self.ur_receive.getActualTCPPose()
+    
+    def get_FtRawWrench(self):
+        return self.ur_receive.getFtRawWrench()
+
+    def get_ActualTCPForce(self):
+        return self.ur_receive.getActualTCPForce()
 
 class RTDE_node:
     def __init__(self, UR_IP_ADDRESS):
@@ -43,14 +51,49 @@ class RTDE_node:
         self.prev_time = rospy.Time.now()
         self.sub_joy = rospy.Subscriber("/joy_delta_pose", PoseStamped, self.pose_servo_CB)
         self.sub_servo = rospy.Subscriber("/pose_to_servo", PoseStamped, self.pose_servo_CB)
-
+        self.ur_pose_state_pub = rospy.Publisher('/ur_pose_state', PoseStamped)
+        self.ur_wrench_state_pub = rospy.Publisher('/ur_wrench_state', Wrench)
         print("Starting state_receive ...")
         self.urReceive = state_receive(UR_IP_ADDRESS)
         print("Starting state_jointctl ...")
         self.urJointctl = state_jointctl(UR_IP_ADDRESS)
         print("Finished state_jointctl")
-        self.Pose_initial = [-0.142, -0.427, 0.215, -0.0, -3.178, -0.0184]
+        self.Pose_initial = [0.4, -0.15, 0.3, -2.22144, 2.22144, 0.0]
+        
         self.is_stop_it_now = False
+        rospy.Timer(rospy.Duration(0, 1e8), self.publish_pose_state) # 10 Hz
+
+    def publish_pose_state(self, event):
+        """
+        publish ur pose
+        """
+        pose_to_send = PoseStamped()
+        pose_to_send.header.frame_id = "base2end"
+        pose_to_send.header.stamp = rospy.Time.now()
+        current_pose = self.urReceive.get_ActuralTCPPose()
+        ### force info test
+        # current_wrench = self.urReceive.get_FtRawWrench() # Only for > polyscope 5.9
+        # rospy.loginfo("current_wrench: {}".format(current_wrench))
+        current_tcpforce = self.urReceive.get_ActualTCPForce()
+        wrench_to_send = Wrench()
+        wrench_to_send.force.x = current_tcpforce[0]
+        wrench_to_send.force.y = current_tcpforce[1]
+        wrench_to_send.force.z = current_tcpforce[2]
+        wrench_to_send.torque.x = current_tcpforce[3]
+        wrench_to_send.torque.y = current_tcpforce[4]
+        wrench_to_send.torque.z = current_tcpforce[5]
+        self.ur_wrench_state_pub.publish(wrench_to_send)
+        # rospy.loginfo("current_tcpforce:{}".format(current_tcpforce))
+
+        pose_to_send.pose.position.x = current_pose[0]
+        pose_to_send.pose.position.y = current_pose[1]
+        pose_to_send.pose.position.z = current_pose[2]
+        # direct axis-angle rotation 
+        pose_to_send.pose.orientation.x = current_pose[3]
+        pose_to_send.pose.orientation.y = current_pose[4]
+        pose_to_send.pose.orientation.z = current_pose[5]
+        pose_to_send.pose.orientation.w = 1
+        self.ur_pose_state_pub.publish(pose_to_send)
 
     def pose_servo_CB(self, msg):
         Pose_delta = msg
@@ -63,7 +106,7 @@ class RTDE_node:
         elif frame_id == "APOSE": # absolute pose
             Pose_curr = self.urReceive.get_ActuralTCPPose()
             new_pose, pose_bias = self.computePoseFromAbsolutePose(Pose_curr, Pose_delta)
-            if (pose_bias > 1e-03 and pose_bias < 0.5):
+            if (pose_bias > 1e-03 and pose_bias < 1.5):
                 self.target_pose = new_pose
                 self.pose_bias = pose_bias
                 self.overwrite_servo = False
@@ -77,7 +120,7 @@ class RTDE_node:
             Pose_curr = self.urReceive.get_ActuralTCPPose()
             # print('current Pose_ur:', Pose_curr)
             new_pose, pose_bias = self.computePoseFromDeltaPose(Pose_curr, Pose_delta)
-            if (pose_bias > 1e-03 and pose_bias < 0.5):
+            if (pose_bias > 1e-03 and pose_bias < 1.5):
                 self.target_pose = new_pose
                 self.pose_bias = pose_bias
                 self.overwrite_servo = False
@@ -223,6 +266,7 @@ class RTDE_node:
                     self.urJointctl.ur_jointctl.servoL(servo_target_pose, vel_pose, acc, dt, lookahead_time, gain)
                     self.urJointctl.ur_jointctl.waitPeriod(t_start)
                     self.overwrite_servo = False
+
         except KeyboardInterrupt:
             print("Control Interrupted!")
             self.urJointctl.ur_jointctl.servoStop()
