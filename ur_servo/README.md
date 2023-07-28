@@ -59,7 +59,7 @@ Please check other package or tools available to control UR. Here are some refer
 # Problems
 ### **ur_rtde package installation maybe quite tricky** 
 
-If you want to use it in python3, just run `pip3 install ur_rtde` can be fine. However, if willing to implemented in python2 (e.g. ROS 1), `pip install ur_rtde` may go wrong because dependency of pybind11. A robust way is to complie and build install the source on your own following [rtde installation guide](https://sdurobotics.gitlab.io/ur_rtde/installation/installation.html). **NOTE: DO REMEMBER** to set the git option (`git submodule update --init --recursive`) and cmake command (`cmake -DPYBIND11_PYTHON_VERSION=2.x ..`) as memetioned in [rtde installation guide](https://sdurobotics.gitlab.io/ur_rtde/installation/installation.html).
+If you want to use it in python3, just run `pip3 install ur_rtde` can be fine. However, if willing to implemented in python2 (e.g. ROS 1), `pip install ur_rtde` may go wrong because dependency of pybind11. A robust way is to complie and build install the source on your own following `ur_rtde_installation.md`. **NOTE: DO REMEMBER** to set the git option (`git submodule update --init --recursive`) and cmake command (`cmake -DPYBIND11_PYTHON_VERSION=2.x ..`) as memetioned in [rtde installation guide](https://sdurobotics.gitlab.io/ur_rtde/installation/installation.html).
 
 
 ### **URsim and its IP**
