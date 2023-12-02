@@ -27,6 +27,8 @@ NOTE: the script is default using the external_control.URCap, after run the scri
 ```
     self.ur_jointctl = RTDEControl(UR_IP_ADDRESS, -1, RTDEControl.FLAG_USE_EXT_UR_CAP)
 ```
+If you want to use ur_rtde, `UR CAP External Control` is required to run in the UR3e panel, guidance see: [install_urcap_e_series](https://github.com/UniversalRobots/Universal_Robots_ROS_Driver/blob/master/ur_robot_driver/doc/install_urcap_e_series.md) 
+
 **It is really annoying that always some errors pop up when using the RTDE, check its [issue page](https://gitlab.com/sdurobotics/ur_rtde/-/issues/) maybe helpful.**
 
 Please check other package or tools available to control UR. Here are some reference for you:
@@ -59,7 +61,7 @@ Please check other package or tools available to control UR. Here are some refer
 # Problems
 ### **ur_rtde package installation maybe quite tricky** 
 
-If you want to use it in python3, just run `pip3 install ur_rtde` can be fine. However, if willing to implemented in python2 (e.g. ROS 1), `pip install ur_rtde` may go wrong because dependency of pybind11. A robust way is to complie and build install the source on your own following [rtde installation guide](https://sdurobotics.gitlab.io/ur_rtde/installation/installation.html). **NOTE: DO REMEMBER** to set the git option (`git submodule update --init --recursive`) and cmake command (`cmake -DPYBIND11_PYTHON_VERSION=2.x ..`) as memetioned in [rtde installation guide](https://sdurobotics.gitlab.io/ur_rtde/installation/installation.html).
+If you want to use it in python3, just run `pip3 install ur_rtde` can be fine. However, if willing to implemented in python2 (e.g. ROS 1), `pip install ur_rtde` may go wrong because dependency of pybind11. A robust way is to complie and build install the source on your own following `ur_rtde_installation.md`. **NOTE: DO REMEMBER** to set the git option (`git submodule update --init --recursive`) and cmake command (`cmake -DPYBIND11_PYTHON_VERSION=2.x ..`) as memetioned in [rtde installation guide](https://sdurobotics.gitlab.io/ur_rtde/installation/installation.html).
 
 
 ### **URsim and its IP**
