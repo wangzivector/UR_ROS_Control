@@ -9,6 +9,7 @@ import tf
 import math
 from geometry_msgs.msg import PoseStamped
 from geometry_msgs.msg import Wrench
+from sensor_msgs.msg import JointState
 
 
 class state_jointctl():
@@ -52,6 +53,7 @@ class RTDE_node:
         self.sub_joy = rospy.Subscriber("/joy_delta_pose", PoseStamped, self.pose_servo_CB)
         self.sub_servo = rospy.Subscriber("/pose_to_servo", PoseStamped, self.pose_servo_CB)
         self.ur_pose_state_pub = rospy.Publisher('/ur_pose_state', PoseStamped)
+        self.ur_joint_state_pub = rospy.Publisher('/ur5e/joint_states', JointState)
         self.ur_wrench_state_pub = rospy.Publisher('/ur_wrench_state', Wrench)
         print("Starting state_receive ...")
         self.urReceive = state_receive(UR_IP_ADDRESS)
@@ -70,8 +72,9 @@ class RTDE_node:
         pose_to_send = PoseStamped()
         pose_to_send.header.frame_id = "base2end"
         pose_to_send.header.stamp = rospy.Time.now()
-        current_pose = self.urReceive.get_ActuralTCPPose()
-        ### force info test
+        current_joints = self.urReceive.get_ActuralJointPose()
+
+        ### force msg
         # current_wrench = self.urReceive.get_FtRawWrench() # Only for > polyscope 5.9
         # rospy.loginfo("current_wrench: {}".format(current_wrench))
         current_tcpforce = self.urReceive.get_ActualTCPForce()
@@ -85,6 +88,8 @@ class RTDE_node:
         self.ur_wrench_state_pub.publish(wrench_to_send)
         # rospy.loginfo("current_tcpforce:{}".format(current_tcpforce))
 
+        ## 6 Dof pose msg
+        current_pose = self.urReceive.get_ActuralTCPPose()
         pose_to_send.pose.position.x = current_pose[0]
         pose_to_send.pose.position.y = current_pose[1]
         pose_to_send.pose.position.z = current_pose[2]
@@ -94,6 +99,16 @@ class RTDE_node:
         pose_to_send.pose.orientation.z = current_pose[5]
         pose_to_send.pose.orientation.w = 1
         self.ur_pose_state_pub.publish(pose_to_send)
+
+        ## 6 joints
+        current_joints_state = JointState()
+        current_joints_state.header.frame_id = ''
+        current_joints_state.header.stamp = pose_to_send.header.stamp
+        current_joints_state.name =  ['shoulder_pan_joint', 'shoulder_lift_joint', 'elbow_joint', 
+                                      'wrist_1_joint', 'wrist_2_joint', 'wrist_3_joint']
+        current_joints_state.position = current_joints
+        self.ur_joint_state_pub.publish(current_joints_state)
+
 
     def pose_servo_CB(self, msg):
         Pose_delta = msg
@@ -153,7 +168,7 @@ class RTDE_node:
                 self.pose_bias = pose_bias
                 self.overwrite_servo = True
                 self.control_mode = 'Servo'
-                rospy.loginfo("{} Update SERVO bias: {:.04f}. \nCurrent XYZ: {:.02f} {:.02f} {:.02f},RxRyRz:{:.02f} {:.02f} {:.02f}".format(
+                rospy.loginfo("{} Update SERVO bias: {:.04f}. \nCurrent XYZ: {:.04f} {:.04f} {:.04f},RxRyRz:{:.04f} {:.04f} {:.04f}".format(
                     identity, pose_bias, Pose_curr[0], Pose_curr[1], Pose_curr[2], \
                     Pose_curr[3], Pose_curr[4], Pose_curr[5]))
             elif (identity != "JOY"): rospy.logwarn("ERROR pose bias for pose cnt: {}".format(pose_bias))
@@ -275,6 +290,7 @@ class RTDE_node:
 
 def main():
     UR_IP_ADDRESS = "10.113.130.112"
+    # UR_IP_ADDRESS = "192.168.1.111"
     if rospy.has_param("ur_ip"):
         UR_IP_ADDRESS = rospy.get_param("ur_ip")
     else:
