@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 import rospy
-import roslib
-import geometry_msgs.msg
 from geometry_msgs.msg import PoseStamped
 from copy import deepcopy
 from sensor_msgs.msg import Joy
@@ -102,8 +100,8 @@ class Joy_delta_pose_node:
     def __init__(self):
         self.frame_id = 'joy_delta_pose'
         self.history = StatusHistory(max_length=10)
-        self.joy_pose_pub = rospy.Publisher("/joy_delta_pose", PoseStamped, queue_size=1)
-        self.sub = rospy.Subscriber("/joy", Joy, self.joyCB, queue_size=1)
+        self.joy_pose_pub = rospy.Publisher("/pose_servo_cmd", PoseStamped, queue_size=1)
+        self.sub = rospy.Subscriber("/joy", Joy, self.joy_cb, queue_size=1)
 
     def computePoseFromJoy(self, status):
         new_pose = PoseStamped()
@@ -195,7 +193,7 @@ class Joy_delta_pose_node:
             new_pose.pose.orientation.w = diff_q[3]
             return new_pose
 
-    def joyCB(self, msg):
+    def joy_cb(self, msg):
         axes_amount = len(msg.axes)
         buttons_amount = len(msg.buttons)
 

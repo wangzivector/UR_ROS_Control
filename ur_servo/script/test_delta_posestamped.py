@@ -5,12 +5,14 @@ from geometry_msgs.msg import PoseStamped
 import tf
 
 rospy.init_node('pose_to_servo_send_action')
-pub = rospy.Publisher('/pose_to_servo', PoseStamped, queue_size=1)
+pub = rospy.Publisher('/pose_servo_cmd', PoseStamped, queue_size=1)
 
 # COM__STOP  COM_JOINT  COM_POSE
 
+
 for i in range(4):
     x, y, z, roll, pitch, yaw = 0.41, -0.15, 0.16, -2.38, 2.04, 0.03
+
     absolute_pose_to_send = PoseStamped()
     absolute_pose_to_send.header.frame_id = "COM_APOSE"
     absolute_pose_to_send.pose.position.x = x

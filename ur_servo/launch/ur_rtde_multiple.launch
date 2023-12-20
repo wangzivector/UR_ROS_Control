@@ -1,0 +1,37 @@
+  <launch>
+    <arg name="ur_1_ip" default="192.168.1.102" />
+    <arg name="ur_1_port" default="50002" />
+
+    <arg name="ur_2_ip" default="192.168.1.103" />
+    <arg name="ur_2_port" default="50003" />
+
+    <arg name="ur_3_ip" default="192.168.1.104" />
+    <arg name="ur_3_port" default="50004" />
+   
+   <group ns="ur_1">
+        <node pkg="ur_servo" type="ur_joy_rtde_node.py" name="ur_joy_rtde_node" output='screen' args="UR1 $(arg ur_1_ip) $(arg ur_1_port)">
+            <remap from="/pose_servo_cmd" to="/ur_1/pose_servo_cmd"/>
+            <remap from="/joint_states" to="/ur_1/ur5e/joint_states"/>
+            <remap from="/ur_pose_state" to="/ur_1/ur_pose_state"/>
+            <remap from="/ur_wrench_state" to="/ur_1/ur_wrench_state"/>
+        </node>
+   </group>
+
+    <group ns="ur_2">
+        <node pkg="ur_servo" type="ur_joy_rtde_node.py" name="ur_joy_rtde_node" output='screen' args="UR2 $(arg ur_2_ip) $(arg ur_2_port)">
+            <remap from="/pose_servo_cmd" to="/ur_2/pose_servo_cmd"/>
+            <remap from="/joint_states" to="/ur_2/ur3e/joint_states"/>
+            <remap from="/ur_pose_state" to="/ur_2/ur_pose_state"/>
+            <remap from="/ur_wrench_state" to="/ur_2/ur_wrench_state"/>
+        </node>
+   </group>
+
+    <group ns="ur_3">
+        <node pkg="ur_servo" type="ur_joy_rtde_node.py" name="ur_joy_rtde_node" output='screen' args="UR3 $(arg ur_3_ip) $(arg ur_3_port)">
+            <remap from="/pose_servo_cmd" to="/ur_3/pose_servo_cmd"/>
+            <remap from="/joint_states" to="/ur_3/ur3e/joint_states"/>
+            <remap from="/ur_pose_state" to="/ur_3/ur_pose_state"/>
+            <remap from="/ur_wrench_state" to="/ur_3/ur_wrench_state"/>
+        </node>
+   </group>
+</launch>

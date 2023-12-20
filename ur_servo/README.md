@@ -1,3 +1,12 @@
+# Updates - 2023.12
+## Key features 
+- Well-structured control python script for UR-E series
+- **Multiple UR robots** supported (at least 3 URs tested)
+- Real-time incremental pose control
+- Work with or without ROS
+> All these features can be identified inside `launch/ur_rtde.launch`, `launch/ur_rtde_multiple.launch`, and `UR_control_rtde/ur_rtde.py`.
+
+
 # Introduction
 This repository is setuped for controlling pose of UR end-effector using **python** scripts. There are three python packages (`RTDE`, `moveit_ros_planning_interface` and `moveit_commander`) adopted independently to achieve the same goal: **Move UR's TCP to desired poses fast**. (**If you don't want to take MoveIt, `script/ur_joy_rtde.py` with excellent servo rate(20-100Hz) will satisify most of your needs.**)  
 
@@ -18,17 +27,15 @@ This repository is setuped for controlling pose of UR end-effector using **pytho
 # Usage
 ## script/ur_joy_rtde.py
 1. If you want to use a joystick to control the UR robot, run the joystick related launch first: `roslaunch ur_servo joystick_control_publish.launch`, which will convert joy commands to pose changes and send to the `ur_joy_rtde.py`.
-2. If you want to control the UR by externally publishing a `PoseStamped` msg, check the class `RTDE_node` and refer to the callback function `sample_code_of_pose_servo_CB(self, msg)` to subscribe the related topic.
-3. Configure the `UR_IP_ADDRESS` inside the script, then run it. OR just run:
+2. If you want to control the UR by externally publishing a `PoseStamped` msg, check the class `RTDE_node` to subscribe the related topic.
+3. Configure the `UR_IP_ADDRESS` and `UR_PORT` inside the script or launch file, then run it. OR just run:
 ```
-rosrun ur_servo ur_joy_rtde_node.py _ip:=10.113.130.112
+rosrun ur_servo ur_rtde_node.py UR 192.168.1.111 500002
 ```
 NOTE: the script is default using the external_control.URCap, after run the script you should start the external_control.URCap; or your just remove the flag `RTDEControl.FLAG_USE_EXT_UR_CAP` at:
 ```
     self.ur_jointctl = RTDEControl(UR_IP_ADDRESS, -1, RTDEControl.FLAG_USE_EXT_UR_CAP)
 ```
-If you want to use ur_rtde, `UR CAP External Control` is required to run in the UR3e panel, guidance see: [install_urcap_e_series](https://github.com/UniversalRobots/Universal_Robots_ROS_Driver/blob/master/ur_robot_driver/doc/install_urcap_e_series.md) 
-
 **It is really annoying that always some errors pop up when using the RTDE, check its [issue page](https://gitlab.com/sdurobotics/ur_rtde/-/issues/) maybe helpful.**
 
 Please check other package or tools available to control UR. Here are some reference for you:
@@ -55,13 +62,13 @@ Please check other package or tools available to control UR. Here are some refer
 3. If always waiting informing 'Unable to initialize planning group' likewise, check the following topic: `rostopic hz /rviz_moveit_motion_planning_display/robot_interaction_interactive_marker_topic/update_full`, and try to drag the eef maker inside the RVIZ. after the mentioned topic is published, rosnode will work and listen to `/joy` (check it if necessary too) topic and is able to move the marker using joystick.   
 
 ## joystick_control_publish.launch
-1. `joystick_control_publish.launch` launch file run the ros standard Joy package node (`/joy` msg) and process the button/axis values to pose increment (`/joy_delta_pose` msg). 
+1. `joystick_control_publish.launch` launch file run the ros standard Joy package node (`/joy` msg) and process the button/axis values to pose increment (`/pose_servo_cmd` msg). 
 2. Four axis on the left and L1/L2 /R1/R2 are used to control six dof of UR TCP, SELECT button send a STOP signal via head.frame_id to shutdown rosnode.
 
 # Problems
 ### **ur_rtde package installation maybe quite tricky** 
 
-If you want to use it in python3, just run `pip3 install ur_rtde` can be fine. However, if willing to implemented in python2 (e.g. ROS 1), `pip install ur_rtde` may go wrong because dependency of pybind11. A robust way is to complie and build install the source on your own following `ur_rtde_installation.md`. **NOTE: DO REMEMBER** to set the git option (`git submodule update --init --recursive`) and cmake command (`cmake -DPYBIND11_PYTHON_VERSION=2.x ..`) as memetioned in [rtde installation guide](https://sdurobotics.gitlab.io/ur_rtde/installation/installation.html).
+If you want to use it in python3, just run `pip3 install ur_rtde` can be fine. However, if willing to implemented in python2 (e.g. ROS 1), `pip install ur_rtde` may go wrong because dependency of pybind11. A robust way is to complie and build install the source on your own following [rtde installation guide](https://sdurobotics.gitlab.io/ur_rtde/installation/installation.html). **NOTE: DO REMEMBER** to set the git option (`git submodule update --init --recursive`) and cmake command (`cmake -DPYBIND11_PYTHON_VERSION=2.x ..`) as memetioned in [rtde installation guide](https://sdurobotics.gitlab.io/ur_rtde/installation/installation.html).
 
 
 ### **URsim and its IP**

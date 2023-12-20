@@ -1,6 +1,14 @@
 # UR ROS Pose Control
 This repository collects several ways to control the pose of UR robots, including pose tracking. The method are divided by python-based package `/ur_servo` and cpp-based package `/moveit_servo`, which have their own dependencies. Most packages/nodes are related [MoveIt!](http://docs.ros.org/en/melodic/api/moveit_tutorials/html/doc/quickstart_in_rviz/quickstart_in_rviz_tutorial.html) but run in various independent interface. Besides, [ur_rtde](https://sdurobotics.gitlab.io/ur_rtde/introduction/introduction.html) are implemented in some nodes `/ur_servo` to control UR with/without ROS. In short, `/ur_servo` and `/moveit_servo` (as well as nodes inside) are independent in build and implementation. More likely to let you check and see the ways to do what you want with UR. 
 
+## Key features 
+- Well-structured control python script for UR-E series
+- **Multiple UR robots** supported (at least 3 URs tested)
+- Real-time incremental pose control
+- Work with or without ROS
+> All these features can be identified inside `ur_servo/launch/ur_rtde.launch`, `ur_servo/launch/ur_rtde_multiple.launch`, and `ur_servo/UR_control_rtde/ur_rtde.py`.
+
+
 # Features
 ## ur_servo
 * Examples of using python [ur_rtde](https://sdurobotics.gitlab.io/ur_rtde/introduction/introduction.html) independently control UR, see: [ur_rtde_circle.py](ur_servo/UR_control_rtde/ur_rtde_circle.py) and [ur_rtde.py](ur_servo/UR_control_rtde/ur_rtde.py).

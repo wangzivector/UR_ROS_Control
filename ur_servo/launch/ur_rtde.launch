@@ -1,0 +1,9 @@
+<!-- roslaunch ur_servo ur_rtde.launch ur_ip:=192.168.1.102 -->
+<launch>
+  <arg name="ur_ip" default="192.168.1.102" />
+  <arg name="ur_port" default="50002" />
+
+  <node pkg="ur_servo" type="ur_joy_rtde_node.py" name="ur_joy_rtde_node" output='screen' args="UR $(arg ur_ip) $(arg ur_port)">
+      <remap from="/joint_states" to="/ur5e/joint_states"/>
+  </node>
+</launch>

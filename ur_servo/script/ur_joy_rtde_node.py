@@ -13,9 +13,8 @@ from sensor_msgs.msg import JointState
 
 
 class state_jointctl():
-    def __init__(self, UR_IP_ADDRESS):
-        print("Try to open UR Cap on UR terminal, after the following command...")
-        self.ur_jointctl = RTDEControl(UR_IP_ADDRESS, -1, RTDEControl.FLAG_USE_EXT_UR_CAP)
+    def __init__(self, UR_IP_ADDRESS, SERVER_PORT):
+        self.ur_jointctl = RTDEControl(UR_IP_ADDRESS, -1, RTDEControl.FLAG_USE_EXT_UR_CAP, SERVER_PORT)
         # self.ur_jointctl.zeroFtSensor()
 
     def set_TargetJoint(self, target_joint_q, is_Noblocked):
@@ -47,23 +46,24 @@ class state_receive():
         return self.ur_receive.getActualTCPForce()
 
 class RTDE_node:
-    def __init__(self, UR_IP_ADDRESS):
+    def __init__(self, UR_IP_ADDRESS, UR_ID, SERVER_PORT):
+        self.UR_ID = UR_ID
         self.tf_listener = tf.TransformListener()
         self.prev_time = rospy.Time.now()
-        self.sub_joy = rospy.Subscriber("/joy_delta_pose", PoseStamped, self.pose_servo_CB)
-        self.sub_servo = rospy.Subscriber("/pose_to_servo", PoseStamped, self.pose_servo_CB)
-        self.ur_pose_state_pub = rospy.Publisher('/ur_pose_state', PoseStamped)
-        self.ur_joint_state_pub = rospy.Publisher('/ur5e/joint_states', JointState)
-        self.ur_wrench_state_pub = rospy.Publisher('/ur_wrench_state', Wrench)
-        print("Starting state_receive ...")
+        self.sub_servo = rospy.Subscriber("/pose_servo_cmd", PoseStamped, self.pose_servo_cb)
+        self.ur_pose_state_pub = rospy.Publisher('/ur_pose_state', PoseStamped, queue_size=1)
+        self.ur_joint_state_pub = rospy.Publisher('/joint_states', JointState, queue_size=1)
+        self.ur_wrench_state_pub = rospy.Publisher('/ur_wrench_state', Wrench, queue_size=1)
+        print("[{}] Starting state_receive ...".format(self.UR_ID))
         self.urReceive = state_receive(UR_IP_ADDRESS)
-        print("Starting state_jointctl ...")
-        self.urJointctl = state_jointctl(UR_IP_ADDRESS)
-        print("Finished state_jointctl")
+        print("[{}] Starting state_jointctl ...".format(self.UR_ID))
+        self.urJointctl = state_jointctl(UR_IP_ADDRESS, SERVER_PORT)
+        print("[{}] Finished state_jointctl".format(self.UR_ID))
         self.Pose_initial = [0.4, -0.15, 0.3, -2.22144, 2.22144, 0.0]
         
         self.is_stop_it_now = False
         rospy.Timer(rospy.Duration(0, 1e8), self.publish_pose_state) # 10 Hz
+
 
     def publish_pose_state(self, event):
         """
@@ -104,13 +104,13 @@ class RTDE_node:
         current_joints_state = JointState()
         current_joints_state.header.frame_id = ''
         current_joints_state.header.stamp = pose_to_send.header.stamp
-        current_joints_state.name =  ['shoulder_pan_joint', 'shoulder_lift_joint', 'elbow_joint', 
+        current_joints_state.name = ['shoulder_pan_joint', 'shoulder_lift_joint', 'elbow_joint', 
                                       'wrist_1_joint', 'wrist_2_joint', 'wrist_3_joint']
         current_joints_state.position = current_joints
         self.ur_joint_state_pub.publish(current_joints_state)
 
 
-    def pose_servo_CB(self, msg):
+    def pose_servo_cb(self, msg):
         Pose_delta = msg
         Head_frame_id = Pose_delta.header.frame_id
         identity, frame_id = Head_frame_id[:3], Head_frame_id[4:] # Get option
@@ -126,10 +126,10 @@ class RTDE_node:
                 self.pose_bias = pose_bias
                 self.overwrite_servo = False
                 self.control_mode = 'Pose'
-                rospy.loginfo("{} Update Pose bias: {:.04f}. \New XYZ: {:.02f} {:.02f} {:.02f},RxRyRz:{:.02f} {:.02f} {:.02f}".format(
-                    identity, pose_bias, new_pose[0], new_pose[1], new_pose[2], \
+                rospy.loginfo("[{}] {} Update Pose bias: {:.04f}. \New XYZ: {:.02f} {:.02f} {:.02f},RxRyRz:{:.02f} {:.02f} {:.02f}".format(
+                    self.UR_ID, identity, pose_bias, new_pose[0], new_pose[1], new_pose[2], \
                     new_pose[3], new_pose[4], new_pose[5]))
-            else: rospy.logwarn("ERROR distance bias for pose cnt: {}".format(pose_bias))
+            else: rospy.logwarn("[{}] ERROR distance bias for pose cnt: {}".format(self.UR_ID, pose_bias))
 
         elif frame_id == "DPOSE": # delta pose: only valid in position, not orientation for convenience ctl.
             Pose_curr = self.urReceive.get_ActuralTCPPose()
@@ -140,10 +140,10 @@ class RTDE_node:
                 self.pose_bias = pose_bias
                 self.overwrite_servo = False
                 self.control_mode = 'Pose'
-                rospy.loginfo("{} Update Pose bias: {:.04f}. \nNew XYZ: {:.02f} {:.02f} {:.02f},RxRyRz:{:.02f} {:.02f} {:.02f}".format(
-                    identity, pose_bias, new_pose[0], new_pose[1], new_pose[2], \
+                rospy.loginfo("[{}] {} Update Pose bias: {:.04f}. \nNew XYZ: {:.02f} {:.02f} {:.02f},RxRyRz:{:.02f} {:.02f} {:.02f}".format(
+                    self.UR_ID, identity, pose_bias, new_pose[0], new_pose[1], new_pose[2], \
                     new_pose[3], new_pose[4], new_pose[5]))
-            else: rospy.logwarn("ERROR distance bias for pose cnt: {}".format(pose_bias))
+            else: rospy.logwarn("[{}] ERROR distance bias for pose cnt: {}".format(self.UR_ID, pose_bias))
 
         elif frame_id == "JOINT": # delta joint
             Joint_curr = self.urReceive.get_ActuralJointPose()
@@ -154,10 +154,10 @@ class RTDE_node:
                 self.joint_bias = joint_bias
                 self.overwrite_servo = False
                 self.control_mode = 'Joint'
-                rospy.loginfo("{} Update joint bias: {:.04f}. Current Joint 123,456: {:.02f} {:.02f} {:.02f}, {:.02f} {:.02f} {:.02f}".format(
-                    identity, joint_bias, Joint_curr[0], Joint_curr[1], Joint_curr[2],Joint_curr[3], \
+                rospy.loginfo("[{}] {} Update joint bias: {:.04f}. Current Joint 123,456: {:.02f} {:.02f} {:.02f}, {:.02f} {:.02f} {:.02f}".format(
+                    self.UR_ID, identity, joint_bias, Joint_curr[0], Joint_curr[1], Joint_curr[2],Joint_curr[3], \
                     Joint_curr[4], Joint_curr[5]))
-            else: rospy.logwarn("ERROR joint bias for pose cnt: {}".format(joint_bias))
+            else: rospy.logwarn("[{}] ERROR joint bias for pose cnt: {}".format(joint_bias))
 
         elif frame_id == "SERVO": # delta pose servo
             Pose_curr = self.urReceive.get_ActuralTCPPose()
@@ -168,10 +168,10 @@ class RTDE_node:
                 self.pose_bias = pose_bias
                 self.overwrite_servo = True
                 self.control_mode = 'Servo'
-                rospy.loginfo("{} Update SERVO bias: {:.04f}. \nCurrent XYZ: {:.04f} {:.04f} {:.04f},RxRyRz:{:.04f} {:.04f} {:.04f}".format(
-                    identity, pose_bias, Pose_curr[0], Pose_curr[1], Pose_curr[2], \
+                rospy.loginfo("[{}] {} Update SERVO bias: {:.04f}. \nCurrent XYZ: {:.04f} {:.04f} {:.04f},RxRyRz:{:.04f} {:.04f} {:.04f}".format(
+                    self.UR_ID, identity, pose_bias, Pose_curr[0], Pose_curr[1], Pose_curr[2], \
                     Pose_curr[3], Pose_curr[4], Pose_curr[5]))
-            elif (identity != "JOY"): rospy.logwarn("ERROR pose bias for pose cnt: {}".format(pose_bias))
+            elif (identity != "JOY"): rospy.logwarn("[{}] ERROR pose bias for pose cnt: {}".format(self.UR_ID, pose_bias))
 
     @staticmethod
     def computePoseFromDeltaPose(Pose_curr, Pose_delta):
@@ -246,8 +246,8 @@ class RTDE_node:
                 # loop_rate.sleep()
                 if self.is_stop_it_now:
                     self.urJointctl.ur_jointctl.servoStop(1.0)
-                    rospy.logwarn("Joystick call stop by pressing SELECT.")
-                    rospy.signal_shutdown("Joystick call stop by pressing SELECT.")
+                    rospy.logwarn("[{}] Joystick call stop by pressing SELECT.".format(self.UR_ID))
+                    rospy.signal_shutdown("[{}] Joystick call stop by pressing SELECT.".format(self.UR_ID))
 
                 vel_pose, acc, lookahead_time, gain, vel_joint = 0.1, 0.1, dt*2, 200, 0.4
 
@@ -260,7 +260,7 @@ class RTDE_node:
                     # Get time restricts the speed to higher
                     block_time = pose_delta / vel_pose
                     if block_time < 0.2: block_time = 0.2
-                    rospy.logwarn("Try to reach posedetla {} in time {} with vel {}".format(pose_delta, block_time, vel_pose))
+                    rospy.logwarn("[{}] Try to reach posedetla {} in time {} with vel {}".format(self.UR_ID, pose_delta, block_time, vel_pose))
                     t_start = self.urJointctl.ur_jointctl.initPeriod()
                     self.urJointctl.ur_jointctl.servoL(servo_target_pose, vel_pose, acc, block_time, lookahead_time, gain)
                     self.urJointctl.ur_jointctl.waitPeriod(t_start)
@@ -270,8 +270,8 @@ class RTDE_node:
                 elif self.control_mode == 'Joint':
                     block_time = joint_delta / vel_joint
                     if block_time < 0.2: block_time = 0.2
-                    rospy.logwarn("Try to reach jointdetla {} in time {} with vel {}".format(joint_delta, block_time, vel_joint))
-                    print('servo_target_joint:', servo_target_joint)
+                    rospy.logwarn("[{}] Try to reach jointdetla {} in time {} with vel {}".format(self.UR_ID, joint_delta, block_time, vel_joint))
+                    print('[{}] servo_target_joint:'.format(self.UR_ID), servo_target_joint)
                     self.urJointctl.ur_jointctl.servoJ(servo_target_joint, vel_joint, acc, block_time, lookahead_time, gain)
                     self.control_mode = 'Servo'
                     self.overwrite_servo = False
@@ -283,26 +283,22 @@ class RTDE_node:
                     self.overwrite_servo = False
 
         except KeyboardInterrupt:
-            print("Control Interrupted!")
+            print("[{}] Control Interrupted!".format(self.UR_ID))
             self.urJointctl.ur_jointctl.servoStop()
             self.urJointctl.ur_jointctl.stopScript()
 
 
 def main():
-    UR_IP_ADDRESS = "10.113.130.112"
-    # UR_IP_ADDRESS = "192.168.1.111"
-    if rospy.has_param("ur_ip"):
-        UR_IP_ADDRESS = rospy.get_param("ur_ip")
-    else:
-        rospy.logwarn('Cannot receice IP setting. using default IP..')
+    import sys
+    UR_ID, UR_IP_ADDRESS, SERVER_PORT = sys.argv[1], sys.argv[2], int(sys.argv[3])
 
     rospy.init_node("ur_rdte_node")
-    rospy.loginfo("Initialized node")
-    rospy.logwarn("IP is %s" %  UR_IP_ADDRESS)
-    app = RTDE_node(UR_IP_ADDRESS)
+    rospy.loginfo("[{}] Initialized node with IP :{}".format(UR_ID, UR_IP_ADDRESS, SERVER_PORT))
+
+    app = RTDE_node(UR_IP_ADDRESS, UR_ID, SERVER_PORT)
     
-    rospy.loginfo("ROS spinning and UR realtiming...")
-    rospy.loginfo("Play joystick or publish posetopic will work...")
+    rospy.loginfo("[{}] ROS spinning and UR realtiming...".format(UR_ID))
+    rospy.loginfo("[{}] Play joystick or publish posetopic will work...".format(UR_ID))
     app.servoPose(dt=0.05)
     # rospy.spin()
 

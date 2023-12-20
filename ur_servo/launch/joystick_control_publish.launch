@@ -1,4 +1,6 @@
 <launch>
+  <arg name="machine" default="" />
+
   <arg name="dev" default="/dev/input/js0" />
 
   <!-- Launch joy node -->
@@ -9,8 +11,9 @@
     <param name="coalesce_interval" value="0.02" />
   </node>
 
-  <node pkg="ur_servo" type="joy_delta_pose.py" name="joy_delta_pose"/>
-
+  <node pkg="ur_servo" type="joy_delta_pose.py" name="joy_delta_pose">
+    <remap from="/pose_servo_cmd" to="$(arg machine)/pose_servo_cmd"/>
+  </node>
   <node pkg="rostopic" type="rostopic" name="echo_joy" args="echo /joy" output="screen"/>
   <!-- <node pkg="rostopic" type="rostopic" name="echo_joy_delta_pose" args="echo /joy_delta_pose" output="screen"/> -->
 
